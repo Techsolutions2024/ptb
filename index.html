@@ -246,10 +246,38 @@
         let photos = [];
         let currentIndex = 0;
 
-        function getDataFromURL() {
+        async function getDataFromURL() {
             const urlParams = new URLSearchParams(window.location.search);
-            const dataParam = urlParams.get('data');
 
+            // METHOD 1: Load from Cloudinary JSON URL (new, fastest QR)
+            const jsonParam = urlParams.get('json');
+            if (jsonParam) {
+                try {
+                    const jsonUrl = decodeURIComponent(jsonParam);
+                    console.log('Loading gallery from Cloudinary JSON:', jsonUrl);
+
+                    const response = await fetch(jsonUrl, { cache: 'no-store' });
+                    if (!response.ok) throw new Error('Failed to fetch gallery JSON');
+
+                    const parsedData = await response.json();
+
+                    // Support format: {s: "session_id", p: ["url1", "url2"]}
+                    if (parsedData.s && parsedData.p) {
+                        return {
+                            session_id: parsedData.s,
+                            photos: parsedData.p.map((url, idx) => ({
+                                url: url,
+                                filename: `photo_${idx + 1}.jpg`
+                            }))
+                        };
+                    }
+                } catch (e) {
+                    console.error('Error loading JSON from Cloudinary:', e);
+                }
+            }
+
+            // METHOD 2: Embedded data in URL (fallback)
+            const dataParam = urlParams.get('data');
             if (dataParam) {
                 try {
                     // Decode base64
@@ -369,7 +397,7 @@
 
         async function init() {
             // Try to get data from URL parameter first (new method)
-            const urlData = getDataFromURL();
+            const urlData = await getDataFromURL();
 
             if (urlData && urlData.photos && urlData.photos.length > 0) {
                 // Use data embedded in URL (QR code method)
