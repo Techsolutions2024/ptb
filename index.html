@@ -246,6 +246,44 @@
         let photos = [];
         let currentIndex = 0;
 
+        function getDataFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const dataParam = urlParams.get('data');
+
+            if (dataParam) {
+                try {
+                    // Decode base64
+                    const decodedData = atob(decodeURIComponent(dataParam));
+                    const parsedData = JSON.parse(decodedData);
+
+                    // Support new format: {s: "session_id", p: ["url1", "url2"]}
+                    if (parsedData.s && parsedData.p) {
+                        return {
+                            session_id: parsedData.s,
+                            photos: parsedData.p.map((url, idx) => ({
+                                url: url,
+                                filename: `photo_${idx + 1}.jpg`
+                            }))
+                        };
+                    }
+
+                    // Support old format: {session_id: "...", photos: [{url, filename}]}
+                    if (parsedData.session_id && parsedData.photos) {
+                        return {
+                            session_id: parsedData.session_id,
+                            photos: Array.isArray(parsedData.photos[0])
+                                ? parsedData.photos.map((url, idx) => ({ url, filename: `photo_${idx + 1}.jpg` }))
+                                : parsedData.photos
+                        };
+                    }
+                } catch (e) {
+                    console.error('Error parsing data parameter:', e);
+                }
+            }
+
+            return null;
+        }
+
         function getSessionId() {
             const urlParams = new URLSearchParams(window.location.search);
             const sessionParam = urlParams.get('session');
@@ -330,21 +368,37 @@
         }
 
         async function init() {
-            const sessionId = getSessionId();
-            
-            if (!sessionId) {
-                showError('❌ Không tìm thấy session ID. Vui lòng quét lại QR code.');
-                return;
-            }
-            
-            try {
-                const manifest = await fetchSessionManifest(sessionId);
-                if (!manifest.photos || manifest.photos.length === 0) {
-                    showError('❌ Không tìm thấy ảnh cho session này.');
+            // Try to get data from URL parameter first (new method)
+            const urlData = getDataFromURL();
+
+            if (urlData && urlData.photos && urlData.photos.length > 0) {
+                // Use data embedded in URL (QR code method)
+                photos = urlData.photos;
+                console.log(`Loaded ${photos.length} photos from URL data`);
+            } else {
+                // Fallback to old method: fetch from Cloudinary manifest
+                const sessionId = getSessionId();
+
+                if (!sessionId) {
+                    showError('❌ Không tìm thấy session ID. Vui lòng quét lại QR code.');
                     return;
                 }
-                
-                photos = manifest.photos.slice(0, 5);
+
+                try {
+                    const manifest = await fetchSessionManifest(sessionId);
+                    if (!manifest.photos || manifest.photos.length === 0) {
+                        showError('❌ Không tìm thấy ảnh cho session này.');
+                        return;
+                    }
+
+                    photos = manifest.photos.slice(0, 5);
+                } catch (error) {
+                    showError('❌ Lỗi tải ảnh: ' + error.message);
+                    return;
+                }
+            }
+
+            try {
                 
                 // Setup UI
                 createThumbnails();
@@ -372,13 +426,13 @@
                 
                 document.getElementById('downloadAllBtn').addEventListener('click', downloadAllImages);
                 document.getElementById('downloadAllBtn').style.display = 'block';
-                
+
                 // Show content
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('content').style.display = 'flex';
-                
+
             } catch (error) {
-                showError('❌ Lỗi tải ảnh: ' + error.message);
+                showError('❌ Lỗi hiển thị ảnh: ' + error.message);
             }
         }
 
