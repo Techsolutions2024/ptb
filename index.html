@@ -481,10 +481,17 @@
             }
 
             try {
-                // Collect all PHOTOS to share (VIDEO is excluded - users can save video directly from player)
+                // Collect all files to share: VIDEO + PHOTOS
                 const filesToShare = [];
 
-                // Fetch all photos only
+                // Fetch video first (if available)
+                if (videoUrl) {
+                    const videoResponse = await fetch(videoUrl);
+                    const videoBlob = await videoResponse.blob();
+                    filesToShare.push(new File([videoBlob], 'animation.mp4', { type: 'video/mp4' }));
+                }
+
+                // Fetch all photos
                 for (let i = 0; i < photos.length; i++) {
                     const response = await fetch(photos[i].url);
                     const blob = await response.blob();
@@ -495,10 +502,10 @@
                 if (navigator.canShare({ files: filesToShare })) {
                     await navigator.share({
                         title: 'Photobooth Gallery',
-                        text: `Chia sẻ ${filesToShare.length} ảnh từ Photobooth Gallery`,
+                        text: `Chia sẻ ${filesToShare.length} file từ Photobooth Gallery`,
                         files: filesToShare
                     });
-                    console.log('✅ Shared all photos successfully');
+                    console.log('✅ Shared all files successfully');
                 } else {
                     alert('Không thể chia sẻ nhiều file cùng lúc. Vui lòng chia sẻ từng ảnh riêng lẻ.');
                 }
