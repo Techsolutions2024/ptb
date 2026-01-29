@@ -272,7 +272,7 @@
         <div id="videoSection" class="video-section" style="display: none;">
             <div class="video-title">🎬 Animation Video</div>
             <div class="video-container">
-                <video id="videoPlayer" controls loop autoplay muted>
+                <video id="videoPlayer" controls loop autoplay muted playsinline>
                     <source id="videoSource" src="" type="video/mp4">
                     Your browser does not support the video tag.
                 </video>
@@ -481,17 +481,10 @@
             }
 
             try {
-                // Collect all files to share
+                // Collect all PHOTOS to share (VIDEO is excluded - users can save video directly from player)
                 const filesToShare = [];
 
-                // Fetch video if available
-                if (videoUrl) {
-                    const videoResponse = await fetch(videoUrl);
-                    const videoBlob = await videoResponse.blob();
-                    filesToShare.push(new File([videoBlob], 'animation.mp4', { type: 'video/mp4' }));
-                }
-
-                // Fetch all photos
+                // Fetch all photos only
                 for (let i = 0; i < photos.length; i++) {
                     const response = await fetch(photos[i].url);
                     const blob = await response.blob();
@@ -502,10 +495,10 @@
                 if (navigator.canShare({ files: filesToShare })) {
                     await navigator.share({
                         title: 'Photobooth Gallery',
-                        text: `Chia sẻ ${filesToShare.length} file từ Photobooth Gallery`,
+                        text: `Chia sẻ ${filesToShare.length} ảnh từ Photobooth Gallery`,
                         files: filesToShare
                     });
-                    console.log('✅ Shared all files successfully');
+                    console.log('✅ Shared all photos successfully');
                 } else {
                     alert('Không thể chia sẻ nhiều file cùng lúc. Vui lòng chia sẻ từng ảnh riêng lẻ.');
                 }
